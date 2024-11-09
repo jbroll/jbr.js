@@ -1,3 +1,5 @@
+error.log
+
 # Dependencies
 node_modules/
 .pnp/

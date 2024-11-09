@@ -1,0 +1,3 @@
+
+test:
+	  npm run test
