@@ -1,1 +1,3 @@
-export { JSONCodec } from './JSONCodec';
+/** @module index */
+
+export { JSONCodec } from "./JSONCodec.js";

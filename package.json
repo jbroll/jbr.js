@@ -17,7 +17,9 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write \"src/**/*.js\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docs": "jsdoc2md -c jsdoc2md.json \"src/**/*.js\" > docs/api.md",
+    "docs:watch": "nodemon --watch src -e js --exec \"npm run docs\""
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -30,7 +32,9 @@
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "husky": "^9.1.6",
+    "jsdoc-to-markdown": "^8.0.0",
     "lint-staged": "^15.2.10",
+    "nodemon": "^3.0.1",
     "prettier": "^3.3.3",
     "rollup": "^4.25.0",
     "rollup-plugin-dts": "^6.1.1",
@@ -123,7 +127,7 @@
     "globals": "^11.12.0",
     "graphemer": "^1.4.0",
     "has-flag": "^4.0.0",
-    "hasown": "^2.0.2",
+    "hasown": "^2.0.0",
     "html-escaper": "^2.0.2",
     "human-signals": "^5.0.0",
     "ignore": "^5.3.2",

@@ -1,3 +1,11 @@
 
+build:
+	npm run build
+
+docs: force
+	npm run docs
+
 test:
-	  npm run test
+	  DEBUG=* npm run test
+
+force:

@@ -1,0 +1,16 @@
+{
+  "source": {
+    "includePattern": ".+\\.js$",
+    "excludePattern": "(index\\.js|node_modules/|__tests__/|test/|dist/)"
+  },
+  "plugins": ["plugins/markdown"],
+  "markdown": {
+    "hardwrap": false,
+    "idInHeadings": true
+  },
+  "template": {
+    "includeTypes": true,
+    "separators": true,
+    "heading-depth": 2
+  }
+}
