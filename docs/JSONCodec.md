@@ -1,149 +1,258 @@
 # JSONCodec
 
-A flexible JSON codec system that enables class-aware serialization and deserialization with support for delegation and property-specific handling.
+A lightweight mixin for adding JSON serialization to JavaScript classes with automatic type preservation.
 
-## Features
+## Overview
 
-- Class-aware serialization and deserialization
-- Property-specific codec delegation
-- Class-specific codec delegation
-- Circular reference detection
-- Support for custom replacers and revivers
-- Chainable configuration API
+JSONCodec allows you to serialize class instances to JSON and deserialize them back to their original class types. It uses a simple mixin pattern and preserves JavaScript's native JSON behavior.
+
+## Installation
+
+```javascript
+import { JSONCodec } from "./JSONCodec.js";
+```
 
 ## Basic Usage
 
-### Simple Class Serialization
+1. Create a codec instance:
 
 ```javascript
-import { JSONCodec } from "jbr.js";
-
-// Create a codec instance
 const codec = new JSONCodec();
+```
 
-// Define and register a class
-class Point extends JSONCodec.Codec(codec).register() {
+2. Add JSON serialization to your class:
+
+```javascript
+class Point {
   constructor(x, y) {
-    super();
     this.x = x;
     this.y = y;
   }
 }
+JSONCodec.withJSON(Point);
+```
 
-// Use it
+3. Register your class with the codec:
+
+```javascript
+codec.register(Point);
+```
+
+4. Use the codec to serialize and deserialize:
+
+```javascript
 const point = new Point(10, 20);
 const json = codec.stringify(point);
-// Result: {"_type":"Point","x":10,"y":20}
-
-const restored = codec.parse(json);
-// Result: Point instance with x=10, y=20
+const decoded = codec.parse(json);
+// decoded instanceof Point === true
+// decoded.x === 10, decoded.y === 20
 ```
 
-### Delegation
+## API Reference
 
-The codec system supports both property-specific and class-specific delegation to other codecs:
+### `class JSONCodec`
+
+#### Constructor
+
+- `new JSONCodec()` - Creates a new codec instance for registering classes
+
+#### Static Methods
+
+- `JSONCodec.withJSON(targetClass)` - Adds JSON serialization capabilities to a class
+  - Returns the modified class for chaining
+  - Adds a `toJSON()` method to the class prototype
+
+#### Instance Methods
+
+- `register(class)` - Registers a class with the codec for type-aware deserialization
+  - Returns the codec instance for chaining
+- `stringify(value[, replacer[, space]])` - Serializes a value to JSON string
+  - Same parameters as `JSON.stringify()`
+- `parse(text[, reviver])` - Parses JSON string back to objects with preserved types
+  - Same parameters as `JSON.parse()`
+
+## Features
+
+### Type Preservation
+
+Objects are serialized with a `_type` field that allows reconstruction of the original class instance:
 
 ```javascript
-// Create separate codecs for different concerns
-const mainCodec = new JSONCodec();
-const shapeCodec = new JSONCodec();
-const colorCodec = new JSONCodec();
-
-// Define classes with delegation
-class Shape extends JSONCodec.Codec(shapeCodec).register() {
-  constructor(type, size) {
-    super();
-    this.type = type;
-    this.size = size;
+class Color {
+  constructor(r, g, b) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
   }
 }
+JSONCodec.withJSON(Color);
+codec.register(Color);
 
-class Color extends JSONCodec.Codec(colorCodec).register() {
-  constructor(name, hex) {
-    super();
-    this.name = name;
-    this.hex = hex;
-  }
-}
+const color = new Color(255, 0, 0);
+const json = codec.stringify(color);
+// json = {"_type":"Color","r":255,"g":0,"b":0}
+const decoded = codec.parse(json);
+// decoded instanceof Color === true
+```
 
-class Drawing extends JSONCodec.Codec(mainCodec)
-  .delegatesTo(Shape, shapeCodec)
-  .delegatesTo(Color, colorCodec)
-  .delegateProp("specialColor", colorCodec)
-  .register() {
-  constructor(shape, color, specialColor) {
-    super();
-    this.shape = shape;
+### Nested Objects
+
+Handles nested class instances automatically:
+
+```javascript
+class Drawing {
+  constructor(color) {
     this.color = color;
-    this.specialColor = specialColor;
+    this.name = "My Drawing";
   }
 }
+JSONCodec.withJSON(Drawing);
+codec.register(Drawing);
+
+const drawing = new Drawing(new Color(255, 0, 0));
+const json = codec.stringify(drawing);
+const decoded = codec.parse(json);
+// decoded.color instanceof Color === true
 ```
 
-## Advanced Features
+### Arrays
 
-### Multiple Codec Registration
-
-A class can be registered with multiple codecs:
+Works with arrays of class instances:
 
 ```javascript
-class MultiRegistered extends JSONCodec.Codec([codec1, codec2]).register() {
-  // class implementation
-}
+const colors = [new Color(255, 0, 0), new Color(0, 255, 0)];
+const json = codec.stringify(colors);
+const decoded = codec.parse(json);
+// decoded[0] instanceof Color === true
+// decoded[1] instanceof Color === true
 ```
 
-### Custom Replacers and Revivers
+### Null and Undefined Handling
 
-The codec supports JSON.stringify's replacer and reviver functions:
+Follows JavaScript's native JSON behavior:
 
-```javascript
-const json = codec.stringify(
-  obj,
-  (key, value) => {
-    if (key === "sensitive") return undefined;
-    return value;
-  },
-  2,
-);
-
-const obj = codec.parse(json, (key, value) => {
-  if (key === "date") return new Date(value);
-  return value;
-});
-```
-
-## Error Handling
-
-The codec includes built-in error handling for:
-
-- Circular references (`TypeError`)
-- Unknown types during parsing (`Error`)
-- Invalid codec implementations (`Error`)
-
-Example error handling:
+- `null` values are preserved
+- Properties assigned `undefined` in constructors are preserved with `undefined` values
+- Never-assigned properties are not included in the serialized output
 
 ```javascript
-try {
-  const obj = { circular: null };
-  obj.circular = obj;
-  const json = codec.stringify(obj);
-} catch (error) {
-  if (error instanceof TypeError) {
-    console.error("Circular reference detected");
+class Shape {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y; // even undefined values are preserved if explicitly assigned
   }
 }
+JSONCodec.withJSON(Shape);
+codec.register(Shape);
+
+const shape = new Shape(null, undefined);
+const json = codec.stringify(shape);
+const decoded = codec.parse(json);
+// decoded.x === null
+// decoded.y === undefined
+// 'y' in decoded === true
+```
+
+### Custom JSON Behavior
+
+Classes can provide their own `toJSON()` method for custom serialization:
+
+```javascript
+class CustomShape {
+  constructor(points) {
+    this.points = points;
+  }
+
+  toJSON() {
+    return {
+      _type: this.constructor.name,
+      serializedPoints: this.points.join(","),
+    };
+  }
+}
+codec.register(CustomShape);
+
+const shape = new CustomShape([1, 2, 3]);
+const json = codec.stringify(shape);
+// json = {"_type":"CustomShape","serializedPoints":"1,2,3"}
+```
+
+### Inheritance
+
+Works with class inheritance hierarchies:
+
+```javascript
+class Shape {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+JSONCodec.withJSON(Shape);
+
+class Circle extends Shape {
+  constructor(x, y, radius) {
+    super(x, y);
+    this.radius = radius;
+  }
+}
+JSONCodec.withJSON(Circle);
+
+codec.register(Shape).register(Circle);
+
+const circle = new Circle(10, 20, 5);
+const json = codec.stringify(circle);
+const decoded = codec.parse(json);
+// decoded instanceof Circle === true
+// decoded instanceof Shape === true
 ```
 
 ## Best Practices
 
-1. **Register Early**: Register all classes with their respective codecs before any serialization/deserialization operations.
+1. Always register classes before attempting to parse JSON containing their instances
+2. Apply `withJSON()` to base classes before derived classes
+3. Register both base and derived classes with the codec if using inheritance
+4. Let native JSON handle null/undefined values rather than trying to manage them manually
 
-2. **Delegation Strategy**: Use property delegation for fine-grained control and class delegation for broader type handling.
+## Limitations
 
-3. **Error Handling**: Always wrap codec operations in try-catch blocks to handle potential circular references or unknown types.
+1. Cannot preserve non-enumerable properties unless explicitly handled in a custom `toJSON()`
+2. Circular references will throw an error (native JSON limitation)
+3. Constructor parameters are not preserved - objects are reconstructed using property assignment
+4. Function properties are not preserved (native JSON limitation)
 
-4. **Class Hierarchy**: When using delegation with class hierarchies, register base classes before derived classes.
+## Error Handling
 
-## API Reference
+The codec throws errors in these cases:
 
-For complete API documentation, see the [API Reference](api.md#jsoncodec).
+- Attempting to parse JSON with an unregistered class type
+- Circular references in the object graph
+- Invalid JSON syntax
+
+```javascript
+// Unregistered class
+class Unregistered {}
+JSONCodec.withJSON(Unregistered);
+const instance = new Unregistered();
+const json = codec.stringify(instance);
+try {
+  codec.parse(json); // throws Error
+} catch (e) {
+  // Error: Unknown type "Unregistered" in codec. Did you forget to register the class?
+}
+
+// Circular reference
+const obj = { a: 1 };
+obj.self = obj;
+try {
+  codec.stringify(obj); // throws Error
+} catch (e) {
+  // Error: Converting circular structure to JSON
+}
+```
+
+## TypeScript Support
+
+While this documentation shows JavaScript examples, the codec works equally well with TypeScript classes. Type definitions are included in the source.
+
+Would you like me to expand on any part of this documentation or add additional examples?

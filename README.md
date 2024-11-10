@@ -18,7 +18,7 @@ A flexible JSON codec system that enables class-aware serialization and deserial
 
 - [API Reference](docs/api.md) - Complete API documentation generated from JSDoc comments
 - Component Documentation:
-  - [JSONCodec](src/JSONCodec.md)
+  - [JSONCodec](docs/JSONCodec.md)
 
 ## Contributing
 
