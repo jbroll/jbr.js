@@ -119,8 +119,7 @@ class JSONCodec {
           );
         }
         const { _type, ...props } = value;
-        const instance = new cls();
-        return Object.assign(instance, props);
+        return new cls(props);
       }
       return value;
     };
